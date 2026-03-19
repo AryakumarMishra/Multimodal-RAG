@@ -4,6 +4,7 @@ import os
 import uuid
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
 from .schema.chat_schema import ChatInput
 from .core.loader import load_document
@@ -13,6 +14,10 @@ from .core.embed import add_to_vector_store
 from .core.retriever import retrieve_documents
 from .core.get_llm import get_llm
 
+# loading environment variables
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(CURRENT_DIR, ".env")
+load_dotenv(env_path, override=True)
 
 # setting up the backend
 app = FastAPI()
