@@ -1,5 +1,5 @@
-# Use a slim Python 3.10 image
-FROM python:3.10-slim
+# Use a slim Python 3.12 image to match your local environment
+FROM python:3.12-slim
 
 # Install system dependencies required by unstructured (PDF parsing), opencv (images), and whisper (audio)
 RUN apt-get update && apt-get install -y \
