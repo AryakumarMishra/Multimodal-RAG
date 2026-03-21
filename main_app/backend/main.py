@@ -5,6 +5,7 @@ import uuid
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from langchain_core.prompts import ChatPromptTemplate
 
 from .schema.chat_schema import ChatInput
 from .core.loader import load_document
@@ -76,39 +77,42 @@ async def chat_with_doc(request: ChatInput):
     context = "\n\n".join(retriever)
 
     # prompt for the llm
-    prompt = f"""
-    You are an Multi-Modal Chatbot performing context-grounded question answering.
+    system_prompt = (
+        "You are an advanced Multi-Modal Assistant performing context-grounded question answering.\n\n"
+        "STRICT RULES:\n"
+        "1. Use ONLY the information contained in the provided context block below.\n"
+        "2. Do NOT use prior knowledge or external information.\n"
+        "3. If the answer exists in the context, you MUST extract and summarize it.\n"
+        "4. ONLY reply 'Not found in the provided document.' if the information is completely absent.\n"
+        "5. Every claim MUST be supported by the provided context.\n"
+        "6. Include verbatim context excerpts that directly support the answer.\n\n"
 
-        STRICT RULES (must be followed):
-        1. Use ONLY the information contained in the provided context.
-        2. Do NOT use prior knowledge or external information.
-        3. If the answer exists in the context, you MUST extract and summarize it.
-        4. ONLY reply "Not found in the provided document." if the information is completely absent.
-        5. Every claim in the answer MUST be supported by the provided context.
-        6. Include verbatim context excerpts that directly support the answer.
+        "Answer Guidelines:\n"
+        "- Answer the question fully using information from the context.\n"
+        "- 3–5 concise sentences.\n"
+        "- Prefer technical specificity over general summaries.\n\n"
 
-        Answer guidelines:
-        - Answer the question fully using information from the context.
-        - 3–5 concise sentences.
-        - Prefer technical specificity over general summaries.
+        "Required Output Format:\n"
+        "Answer: <concise, 3-5 sentence context-grounded answer>\n"
+        "Supporting Context: <exact excerpts used>\n\n"
+        "CONTEXT:\n"
+        "{context}"
+    )
 
-        Required output format:
+    human_prompt = "{query}"
 
-        Answer:
-        <concise, context-grounded answer>
+    chat_template = ChatPromptTemplate.from_messages([
+        {"role": "system", "content": system_prompt},
+        {"role": "human", "content": human_prompt}
+    ])
 
-        Supporting Context (verbatim):
-        <exact excerpts used>
-
-        Context:
-        {context}
-
-        Question:
-        {request.query}
-    """
+    final_prompt = chat_template.format_messages(
+        context=context,
+        query=request.query
+    )
 
     llm = get_llm()
-    llm_response = llm.invoke(prompt)
+    llm_response = llm.invoke(final_prompt)
 
     return {
         "answer": llm_response.content,
